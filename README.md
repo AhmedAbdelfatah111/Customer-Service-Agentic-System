@@ -8,7 +8,7 @@ An intelligent, multi-channel platform designed to revolutionize customer servic
 
 ## 🎥 Video Demo
 
-([Check it](https://youtu.be/ObzqaqGmt68))
+[![Watch the demo](https://img.shields.io/badge/YouTube-Demo%20Video-red?style=for-the-badge&logo=youtube)](https://youtu.be/ObzqaqGmt68?si=TmkbW2t77SSSydRg)
 
 
 ---
