@@ -1,4 +1,4 @@
-# 🤖 Customer Service AI Agents Platform
+#  Customer Service AI Agents Platform
 
 An intelligent, multi-channel platform designed to revolutionize customer service by bridging the gap between automated chatbots and human support. This platform features autonomous AI agents capable of natural conversation, real-time sentiment analysis, and seamless handoff to human supervisors. 
 
@@ -8,7 +8,7 @@ An intelligent, multi-channel platform designed to revolutionize customer servic
 
 ## 🎥 Video Demo
 
-[![Watch the video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)](https://youtu.be/YOUR_VIDEO_ID)
+[![Watch the video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)]([https://youtu.be/YOUR_VIDEO_ID](https://youtu.be/ObzqaqGmt68))
 *(Replace `YOUR_VIDEO_ID` with your actual YouTube video ID in both URLs above)*
 
 ---
@@ -200,7 +200,7 @@ python run_all.py
 
 ---
 
-## 🐳 Deployment
+##  Deployment
 
 The platform is built with modern deployment practices in mind. 
 
@@ -234,16 +234,6 @@ For deep-dives into specific components, please check out the following document
 - [Seminar Documentation](./seminar_documentation.md) - For the complete Executive Summary, operational workflows, and KPIs.
 - [Setup Guide](./SETUP_GUIDE.md) - For team workflows, secrets management, and dependency management.
 - [Quick Reference](./QUICK_REFERENCE.md) - Detailed guide to configuring the Multi-Channel Agent System (Telegram, WhatsApp, Instagram).
-
----
-
-## 👥 The Team
-
-- **Frontend:** Omnia Ashraf, Habiba Amr, Toqa Sayed, Basmalla Mohamed
-- **Backend:** Yousef Mohamed, Moaz Mohamed, Sondos Mossad, Yasmin Ashraf
-- **AI Integration:** Omar Hegazy, Mohamed Rabiee, Omar Tamer, Ahmed Mohamed, Doha Ashraf
-- **Testing & Deployment:** Amira ElSayed
-- **App Development:** Manar Mosbah
 
 ---
 
