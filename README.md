@@ -8,7 +8,7 @@ An intelligent, multi-channel platform designed to revolutionize customer servic
 
 ## 🎥 Video Demo
 
-([https://youtu.be/YOUR_VIDEO_ID](https://youtu.be/ObzqaqGmt68))
+([Check it](https://youtu.be/ObzqaqGmt68))
 
 
 ---
