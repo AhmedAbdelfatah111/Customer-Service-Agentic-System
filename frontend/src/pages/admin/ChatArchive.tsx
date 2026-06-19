@@ -1,0 +1,369 @@
+// src/pages/admin/ChatArchive.tsx — Supervisor chat archive with Insight Card expansion
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Paper,
+  Stack,
+  Chip,
+  TablePagination,
+} from '@mui/material';
+import { MessageSquare, ChevronDown, TrendingUp, Tag } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { archivesAPI } from '../../services/archivesService';
+import { displayPhoneOrSynthetic } from '../../utils/phoneDisplay';
+
+interface ChatLog {
+  id: string;
+  customer: string;
+  time: string;
+  date: string;
+  duration: string;
+  messagePreview: string;
+  status: 'Resolved' | 'Pending' | 'Escalated';
+  satisfaction: number;
+  summary: string;
+  tags: string[];
+  transcript?: string;
+}
+
+const statusColor = (s: string) => {
+  if (s === 'Resolved') return { bg: 'rgba(34,197,94,0.1)', fg: '#22c55e' };
+  if (s === 'Pending') return { bg: 'rgba(245,158,11,0.1)', fg: '#f59e0b' };
+  return { bg: 'rgba(239,68,68,0.1)', fg: '#ef4444' };
+};
+
+const getSatisfactionColor = (score: number) => {
+  if (score >= 80) return '#22c55e';
+  if (score >= 60) return '#f59e0b';
+  return '#ef4444';
+};
+
+const SatisfactionGauge: React.FC<{ score: number }> = ({ score }) => {
+  const color = getSatisfactionColor(score);
+  const circumference = 2 * Math.PI * 28;
+  const offset = circumference - (score / 100) * circumference;
+
+  return (
+    <Box sx={{ position: 'relative', width: 72, height: 72, flexShrink: 0 }}>
+      <svg width="72" height="72" viewBox="0 0 72 72">
+        <circle cx="36" cy="36" r="28" fill="none" stroke="var(--border)" strokeWidth="5" />
+        <motion.circle
+          cx="36" cy="36" r="28" fill="none" stroke={color} strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+          transform="rotate(-90 36 36)"
+        />
+      </svg>
+      <Box sx={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Typography variant="body2" fontWeight={800} sx={{ color, fontSize: '0.85rem' }}>{score}%</Typography>
+      </Box>
+    </Box>
+  );
+};
+
+interface ChatArchiveProps {
+  variant?: 'standalone' | 'section';
+}
+
+const ChatArchive: React.FC<ChatArchiveProps> = ({ variant = 'standalone' }) => {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [chatLogs, setChatLogs] = useState<ChatLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+
+  useEffect(() => {
+    const fetchArchives = async () => {
+      setLoading(true);
+      try {
+        const res = await archivesAPI.getAll(page, rowsPerPage);
+        const payload = res.data as { data?: Record<string, unknown>[], total?: number };
+        const archives = Array.isArray(payload?.data) ? payload.data : [];
+        setTotalCount(payload?.total ?? archives.length);
+        const mapped: ChatLog[] = archives
+          .filter((a) => String((a as { type?: string }).type ?? '').toLowerCase() === 'chat')
+          .map((a) => {
+            const row = a as Record<string, unknown>;
+            const started = row.started_at ? new Date(String(row.started_at)) : new Date();
+            const sec = row.duration_seconds != null ? Number(row.duration_seconds) : null;
+            const dur =
+              sec != null && !Number.isNaN(sec)
+                ? `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`
+                : '0:00';
+            const tagsRaw = row.tags;
+            const tagsArr = Array.isArray(tagsRaw)
+              ? tagsRaw.map((x) => String(x))
+              : typeof tagsRaw === 'object' && tagsRaw !== null
+                ? Object.entries(tagsRaw as Record<string, unknown>).map(([k, v]) => `${k}:${String(v)}`)
+                : [];
+            const rowId = String(row.id ?? '');
+            const previewBase = row.message_preview ?? row.summary;
+            return {
+              id: rowId,
+              customer: displayPhoneOrSynthetic(
+                rowId,
+                (row.phone_number ?? row.customer_name ?? row.caller) as string | undefined,
+              ),
+              time: started.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              date: started.toISOString().split('T')[0],
+              duration: dur,
+              messagePreview: String(previewBase ?? ''),
+              status: (row.status === 'completed' || row.status === 'resolved' ? 'Resolved' : row.status === 'pending' ? 'Pending' : 'Escalated') as ChatLog['status'],
+              satisfaction: Number(row.overall_performance ?? row.csat_score ?? row.satisfaction ?? 0) || 0,
+              summary: String(row.summary ?? ''),
+              tags: tagsArr,
+            };
+          });
+        setChatLogs(mapped);
+      } catch (err) {
+        console.error('Failed to fetch archives', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchArchives();
+  }, [page, rowsPerPage]);
+
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    const existing = chatLogs.find((l) => l.id === id);
+    if (existing?.transcript?.trim()) return;
+
+    setDetailLoadingId(id);
+    try {
+      const res = await archivesAPI.getById(id);
+      const detail = res.data as Record<string, unknown>;
+      setChatLogs((prev) =>
+        prev.map((log) =>
+          log.id === id
+            ? {
+                ...log,
+                summary: String(detail.summary ?? log.summary),
+                satisfaction:
+                  Number(detail.overall_performance ?? detail.csat_score ?? log.satisfaction) ||
+                  log.satisfaction,
+                tags: Array.isArray(detail.tags)
+                  ? detail.tags.map((t) => String(t))
+                  : log.tags,
+                transcript: detail.transcript ? String(detail.transcript) : log.transcript,
+              }
+            : log,
+        ),
+      );
+    } catch (err) {
+      console.error('Failed to load archive detail', err);
+    } finally {
+      setDetailLoadingId(null);
+    }
+  };
+
+  const isSection = variant === 'section';
+
+  return (
+    <Box sx={isSection ? undefined : { p: { xs: 2, md: 4 }, bgcolor: 'var(--bg)', minHeight: '100vh' }}>
+      <Typography
+        variant={isSection ? 'h5' : 'h4'}
+        fontWeight={900}
+        color="var(--text-main)"
+        sx={{ mb: 1 }}
+      >
+        Chat
+      </Typography>
+      {!isSection && (
+        <Typography variant="body1" color="var(--text-secondary)" sx={{ mb: 4 }}>
+          Your recent chat history — click any record to reveal insights
+        </Typography>
+      )}
+      {isSection && (
+        <Typography variant="body2" color="var(--text-secondary)" sx={{ mb: 3 }}>
+          Recent chat transcripts
+        </Typography>
+      )}
+
+      <Stack spacing={2}>
+        {chatLogs.map((log, idx) => {
+          const sc = statusColor(log.status);
+          const isExpanded = expandedId === log.id;
+
+          return (
+            <motion.div
+              key={log.id}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30, delay: idx * 0.06 }}
+            >
+              <Paper
+                onClick={() => toggleExpand(log.id)}
+                sx={{
+                  borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)',
+                  cursor: 'pointer', overflow: 'hidden',
+                  transition: 'box-shadow 0.3s ease, border-color 0.3s ease',
+                  '&:hover': { boxShadow: 'var(--shadow-lg)', borderColor: 'var(--accent-hex)' },
+                  ...(isExpanded && { borderColor: 'var(--accent-hex)', boxShadow: 'var(--shadow-lg)' }),
+                }}
+                elevation={0}
+              >
+                {/* Row header */}
+                <Box sx={{ p: 2.5, display: 'flex', gap: 2 }}>
+                  <Box sx={{ p: 1.5, borderRadius: 'var(--radius-md)', bgcolor: 'rgba(84,119,146,0.1)', alignSelf: 'flex-start', mt: 0.5 }}>
+                    <MessageSquare size={22} color="var(--accent-hex)" />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                      <Typography variant="body1" fontWeight={700} color="var(--text-main)" noWrap>{log.customer}</Typography>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="caption" color="var(--text-muted)">{log.date} · {log.time}</Typography>
+                        <motion.div animate={{ rotate: isExpanded ? 180 : 0 }} transition={{ duration: 0.3 }}>
+                          <ChevronDown size={18} color="var(--text-muted)" />
+                        </motion.div>
+                      </Stack>
+                    </Box>
+                    <Typography variant="body2" color="var(--text-secondary)" sx={{ mb: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {log.messagePreview.trim() ? log.messagePreview : '—'}
+                    </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Chip label={log.status} size="small" sx={{ bgcolor: sc.bg, color: sc.fg, fontWeight: 600 }} />
+                      <Typography variant="caption" color="var(--text-muted)">{log.duration} duration</Typography>
+                    </Stack>
+                  </Box>
+                </Box>
+
+                {/* Expandable Insight Card */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                      style={{ overflow: 'hidden' }}
+                    >
+                      <Box sx={{ px: 2.5, pb: 2.5, pt: 0, borderTop: '1px solid var(--border)' }}>
+                        <Box sx={{ pt: 2.5, display: 'flex', gap: 3, flexWrap: { xs: 'wrap', sm: 'nowrap' } }}>
+                          {/* Satisfaction Gauge */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5, minWidth: 90 }}>
+                            <SatisfactionGauge score={log.satisfaction} />
+                            <Typography variant="caption" fontWeight={600} color="var(--text-muted)" sx={{ mt: 0.5 }}>Satisfaction</Typography>
+                          </Box>
+
+                          {/* Problem Summary & Tags */}
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <TrendingUp size={14} color="var(--accent-hex)" />
+                              <Typography variant="caption" fontWeight={700} color="var(--accent-hex)" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Problem Summary</Typography>
+                            </Box>
+                            <Typography variant="body2" color="var(--text-main)" sx={{ mb: 2, lineHeight: 1.7, fontWeight: 400 }}>
+                              {log.summary.trim() ? log.summary : '—'}
+                            </Typography>
+
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Tag size={14} color="var(--text-muted)" />
+                              <Typography variant="caption" fontWeight={700} color="var(--text-muted)" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tags & Issues</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {log.tags.map(tag => (
+                                <Chip
+                                  key={tag}
+                                  label={tag}
+                                  size="small"
+                                  variant="outlined"
+                                  sx={{
+                                    borderColor: 'var(--border)',
+                                    color: 'var(--text-secondary)',
+                                    fontWeight: 600,
+                                    fontSize: '0.72rem',
+                                    '&:hover': { borderColor: 'var(--accent-hex)', color: 'var(--accent-hex)' },
+                                  }}
+                                />
+                              ))}
+                            </Box>
+
+                            <Typography
+                              variant="caption"
+                              fontWeight={700}
+                              color="var(--text-muted)"
+                              sx={{ display: 'block', mt: 2, mb: 1, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                            >
+                              Conversation
+                            </Typography>
+                            {detailLoadingId === log.id ? (
+                              <Typography variant="body2" color="var(--text-muted)" fontStyle="italic">
+                                Loading transcript…
+                              </Typography>
+                            ) : log.transcript?.trim() ? (
+                              <Box
+                                component="pre"
+                                sx={{
+                                  m: 0,
+                                  p: 1.5,
+                                  borderRadius: 'var(--radius-md)',
+                                  bgcolor: 'var(--bg-dark)',
+                                  border: '1px solid var(--border)',
+                                  fontSize: '0.8rem',
+                                  lineHeight: 1.6,
+                                  whiteSpace: 'pre-wrap',
+                                  maxHeight: 220,
+                                  overflow: 'auto',
+                                  color: 'var(--text-secondary)',
+                                }}
+                              >
+                                {log.transcript}
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="var(--text-muted)" fontStyle="italic">
+                                No transcript stored for this session.
+                              </Typography>
+                            )}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </Paper>
+            </motion.div>
+          );
+        })}
+        {!loading && chatLogs.length === 0 && (
+          <Typography variant="body2" color="var(--text-secondary)" sx={{ py: 3, textAlign: 'center' }}>
+            No chat records found
+          </Typography>
+        )}
+      </Stack>
+
+      {!loading && chatLogs.length > 0 && (
+        <TablePagination
+          component="div"
+          count={totalCount}
+          page={page - 1}
+          onPageChange={(event, newPage) => setPage(newPage + 1)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(event) => {
+            setRowsPerPage(parseInt(event.target.value, 10));
+            setPage(1);
+          }}
+          rowsPerPageOptions={[5, 10, 20, 50]}
+          sx={{
+            color: 'var(--text-main)',
+            mt: 3,
+            '& .MuiTablePagination-actions': { color: 'var(--text-main)' },
+            '& .MuiTablePagination-select': { color: 'var(--text-main)' },
+          }}
+        />
+      )}
+    </Box>
+  );
+};
+
+export default ChatArchive;

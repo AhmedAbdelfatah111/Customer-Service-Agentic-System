@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Python venv/build lib at repo root only (do not use bare lib/ — it ignores frontend/src/lib/)
+/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite
+
+# Testing & Coverage
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.cover
+.hypothesis/
+.tox/
+.nox/
+
+# Backend specific
+backend/.env
+backend/.env.local
+backend/secret-google/
+**/service-account*.json
+
+# Documentation
+/docs
+
+# Python Linters & Type Checking Cache
+.ruff_cache/
+.mypy_cache/
+
+# Auto-generated Orchestration Scripts
+backend/update_webhook_final.py

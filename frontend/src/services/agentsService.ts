@@ -1,0 +1,81 @@
+// src/services/agentsService.ts
+import api from './api';
+
+export interface WebhookConfigs {
+  telegram?: {
+    enabled: boolean;
+    bot_token?: string;
+  };
+  whatsapp?: {
+    enabled: boolean;
+    phone_number?: string;
+    api_token?: string;
+    provider?: 'twilio' | 'meta';
+  };
+  instagram?: {
+    enabled: boolean;
+    business_account_id?: string;
+    api_token?: string;
+  };
+}
+
+export interface AgentPayload {
+  name: string;
+  agent_type?: 'voice' | 'chat';
+  system_prompt?: string;
+  telegram_bot_token?: string;
+  webhook_configs?: WebhookConfigs;
+  status?: 'idle' | 'paused' | 'in_chat' | 'in_call';
+}
+
+export interface KnowledgeDocument {
+  id: string;
+  agent_id: string;
+  filename: string;
+  file_size_bytes: number;
+  created_at: string;
+}
+
+export interface KnowledgeDocumentList {
+  documents: KnowledgeDocument[];
+  total_size_bytes: number;
+  document_count: number;
+}
+
+export const agentsAPI = {
+  getAll: (agentType?: string) =>
+    api.get(`/agents${agentType ? `?agent_type=${agentType}` : ''}`),
+
+  create: (data: AgentPayload) =>
+    api.post('/agents', data),
+
+  getById: (id: string) =>
+    api.get(`/agents/${id}`),
+
+  getStatus: (id: string) =>
+    api.get(`/agents/${id}/status`),
+
+  update: (id: string, data: Partial<AgentPayload>) =>
+    api.put(`/agents/${id}`, data),
+
+  delete: (id: string) =>
+    api.delete(`/agents/${id}`),
+
+  /** POST /agents/{id}/whisper — LiveKit instruction during active call/chat */
+  whisper: (id: string, instructions: string) =>
+    api.post(`/agents/${id}/whisper`, { instructions }),
+
+  listKnowledge: (agentId: string) =>
+    api.get<KnowledgeDocumentList>(`/agents/${agentId}/knowledge`),
+
+  uploadKnowledge: (agentId: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/agents/${agentId}/knowledge`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  deleteKnowledge: (agentId: string, docId: string) =>
+    api.delete(`/agents/${agentId}/knowledge/${docId}`),
+};
