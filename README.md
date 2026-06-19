@@ -8,8 +8,8 @@ An intelligent, multi-channel platform designed to revolutionize customer servic
 
 ## 🎥 Video Demo
 
-[![Watch the video](https://img.youtube.com/vi/YOUR_VIDEO_ID/maxresdefault.jpg)]([https://youtu.be/YOUR_VIDEO_ID](https://youtu.be/ObzqaqGmt68))
-*(Replace `YOUR_VIDEO_ID` with your actual YouTube video ID in both URLs above)*
+([https://youtu.be/YOUR_VIDEO_ID](https://youtu.be/ObzqaqGmt68))
+
 
 ---
 
